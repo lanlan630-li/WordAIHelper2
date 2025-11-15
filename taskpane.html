@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WordAI Helper</title>
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 10px; }
+        .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .action-button { padding: 15px; font-size: 14px; cursor: pointer; border: 1px solid #ccc; background-color: #f0f0f0; border-radius: 5px; }
+        .action-button:hover { background-color: #e0e0e0; }
+        .dialog { display: none; border: 1px solid #ccc; padding: 10px; margin-top: 15px; border-radius: 5px; }
+        .dialog h3 { margin-top: 0; }
+        .dialog textarea { width: 95%; box-sizing: border-box; }
+        .dialog-buttons { margin-top: 10px; }
+        .dialog-buttons button { margin-right: 5px; padding: 5px 10px; }
+        #preview-area { border: 1px solid #ddd; padding: 10px; margin-top: 10px; min-height: 60px; background-color: #fafafa; white-space: pre-wrap; }
+        
+        /* API配置区域样式 */
+        .api-config { margin-bottom: 15px; padding: 10px; background-color: #f5f5f5; border-radius: 5px; }
+        .api-input { width: 70%; padding: 5px; margin-right: 10px; }
+        .status-message { margin-top: 5px; font-size: 12px; }
+        .error { color: #d13438; }
+        .success { color: #107c10; }
+    </style>
+</head>
+<body class="ms-font-m">
+    <h1>WordAI 智能助手</h1>
+    
+    <!-- API配置区域 -->
+    <div class="api-config">
+        <div>
+            <label>API Key: </label>
+            <input type="password" id="sk-dasbnnaq2xo7jnsd" class="api-input" placeholder="sk-...">
+            <button id="save-key-btn">保存</button>
+        </div>
+        <div id="key-status" class="status-message"></div>
+    </div>
+
+    <div class="button-group">
+        <button id="polish-btn" class="action-button">润色</button>
+        <button id="expand-btn" class="action-button">扩写</button>
+        <button id="other-btn" class="action-button">其他</button>
+        <button id="translate-btn" class="action-button">翻译</button>
+        <button id="explain-btn" class="action-button">解释</button>
+    </div>
+
+    <!-- 对话框，默认隐藏 -->
+    <div id="action-dialog" class="dialog">
+        <h3 id="dialog-title">请输入您的指令</h3>
+        <textarea id="instruction-input" rows="3" placeholder="例如：让语气更正式一些"></textarea>
+        <div id="preview-area"></div>
+        <div class="dialog-buttons">
+            <button id="confirm-btn">生成</button>
+            <button id="copy-btn">复制</button>
+            <button id="insert-word-btn">插入Word</button>
+            <button id="cancel-btn">取消</button>
+        </div>
+    </div>
+
+    <script>
+        // API Key管理
+        let apiKey = '';
+        
+        // 从本地存储加载API Key
+        function loadApiKey() {
+            const savedKey = localStorage.getItem('wordai_api_key');
+            if (savedKey) {
+                apiKey = savedKey;
+                document.getElementById('api-key').value = savedKey;
+                updateKeyStatus('API Key已加载', 'success');
+            } else {
+                updateKeyStatus('请输入API Key', 'error');
+            }
+        }
+        
+        // 保存API Key到本地存储
+        function saveApiKey() {
+            const inputKey = document.getElementById('api-key').value;
+            if (inputKey.trim()) {
+                apiKey = inputKey;
+                localStorage.setItem('wordai_api_key', inputKey);
+                updateKeyStatus('API Key已保存', 'success');
+            } else {
+                updateKeyStatus('API Key不能为空', 'error');
+            }
+        }
+
+        function updateKeyStatus(message, type) {
+            const statusEl = document.getElementById('key-status');
+            statusEl.innerText = message;
+            statusEl.className = `status-message ${type}`;
+        }
+
+        Office.onReady(function() {
+            // 加载API Key
+            loadApiKey();
+            
+            // 保存API Key按钮事件
+            document.getElementById('save-key-btn').onclick = saveApiKey;
+            
+            // 按钮事件绑定
+            document.getElementById('polish-btn').onclick = function() { 
+                if (!apiKey) { alert('请先输入API Key'); return; }
+                showDialog('润色', '请对以下文本进行润色，使其更加流畅和专业：'); 
+            };
+            document.getElementById('expand-btn').onclick = function() { 
+                if (!apiKey) { alert('请先输入API Key'); return; }
+                showDialog('扩写', '请对以下文本进行扩写，增加更多细节和内容：'); 
+            };
+            document.getElementById('other-btn').onclick = function() { 
+                if (!apiKey) { alert('请先输入API Key'); return; }
+                showDialog('其他', '请根据我的要求生成内容：'); 
+            };
+            document.getElementById('translate-btn').onclick = function() { 
+                if (!apiKey) { alert('请先输入API Key'); return; }
+                showDialog('翻译', '请将以下文本翻译成英文：'); 
+            };
+            document.getElementById('explain-btn').onclick = function() { 
+                if (!apiKey) { alert('请先输入API Key'); return; }
+                showDialog('解释', '请解释以下文本的含义：'); 
+            };
+            
+            // 对话框按钮事件
+            document.getElementById('confirm-btn').onclick = confirmAction; // 改为“生成”
+            document.getElementById('copy-btn').onclick = copyResult;
+            document.getElementById('insert-word-btn').onclick = insertToWord;
+            document.getElementById('cancel-btn').onclick = hideDialog;
+        });
+
+        let currentAction = '';
+        let selectedText = '';
+
+        function showDialog(title, instruction) {
+            document.getElementById('dialog-title').innerText = title;
+            document.getElementById('instruction-input').value = instruction;
+            document.getElementById('action-dialog').style.display = 'block';
+            currentAction = title;
+            
+            // 获取选中的文本
+            Word.run(function(context) {
+                const selection = context.document.getSelection();
+                context.load(selection, 'text', 'isEmpty');
+                return context.sync().then(function() {
+                    selectedText = selection.text;
+                    // 如果是“其他”功能且没有选中文字，清空预览区
+                    if (currentAction === '其他' && selection.isEmpty) {
+                       document.getElementById('preview-area').innerText = '请在下方输入框中给出您的具体指令，然后点击“生成”。';
+                    } else {
+                       updatePreview();
+                    }
+                });
+            }).catch(function(error) {
+                console.log(error);
+                selectedText = '';
+                updatePreview();
+            });
+        }
+
+        function hideDialog() {
+            document.getElementById('action-dialog').style.display = 'none';
+        }
+
+        function updatePreview() {
+            const instruction = document.getElementById('instruction-input').value;
+            const preview = instruction + '\n\n原文：' + (selectedText || '(未选中任何文本)');
+            document.getElementById('preview-area').innerText = preview;
+        }
+
+        async function confirmAction() {
+            const instruction = document.getElementById('instruction-input').value;
+            let fullPrompt = instruction;
+            
+            if (selectedText) {
+                fullPrompt += '\n\n原文：' + selectedText;
+            }
+            
+            // 显示加载状态
+            document.getElementById('preview-area').innerText = '正在处理，请稍候...';
+            
+            try {
+                // API调用
+                const response = await fetch('https://cloud.infini-ai.com/maas/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + apiKey
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-v3.2-exp',
+                        messages: [{ role: 'user', content: fullPrompt }],
+                        temperature: 0.7
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`API调用失败: ${response.status} ${response.statusText}\n${errorText}`);
+                }
+
+                const data = await response.json();
+                let result = data.choices[0].message.content;
+                
+                // 简单的格式化：去除多余的符号，并保留段落
+                result = result.replace(/#{1,6}\s?/g, '').replace(/\*\*(.*?)\*\*/g, '$1').trim();
+                
+                document.getElementById('preview-area').innerText = result;
+                
+            } catch (error) {
+                console.error('错误:', error);
+                document.getElementById('preview-area').innerText = '处理失败: ' + error.message;
+            }
+        }
+
+        function copyResult() {
+            const result = document.getElementById('preview-area').innerText;
+            if (result && !result.includes('处理失败') && !result.includes('请稍候')) {
+                navigator.clipboard.writeText(result).then(function() {
+                    // 临时修改按钮文本以提供反馈
+                    const copyBtn = document.getElementById('copy-btn');
+                    const originalText = copyBtn.innerText;
+                    copyBtn.innerText = '已复制!';
+                    setTimeout(() => { copyBtn.innerText = originalText; }, 1500);
+                }).catch(function(err) {
+                    console.error('复制失败:', err);
+                });
+            }
+        }
+
+        // 【核心修改】根据不同功能执行不同的插入操作
+        function insertToWord() {
+            const result = document.getElementById('preview-area').innerText;
+            if (result && !result.includes('处理失败') && !result.includes('请稍候')) {
+                Word.run(function(context) {
+                    const selection = context.document.getSelection();
+                    
+                    let insertLocation;
+                    let insertText = result;
+
+                    if (currentAction === '润色' || currentAction === '扩写') {
+                        // 润色和扩写：替换选中的内容
+                        insertLocation = Word.InsertLocation.replace;
+                    } else if (currentAction === '翻译' || currentAction === '解释') {
+                        // 翻译和解释：在选中内容后面插入
+                        insertLocation = Word.InsertLocation.after;
+                        insertText = '\n' + result; // 添加换行符，使格式更清晰
+                    } else { // "其他"功能
+                        // 如果有选中文本，则替换；如果没有，则在光标处插入（即替换）
+                        insertLocation = Word.InsertLocation.replace;
+                    }
+
+                    selection.insertText(insertText, insertLocation);
+                    return context.sync();
+                }).then(function() {
+                    // 操作成功后，可以关闭对话框
+                    hideDialog();
+                }).catch(function(error) {
+                    console.error('插入Word失败:', error);
+                    alert('插入Word失败: ' + error.message);
+                });
+            } else {
+                alert('没有可插入的内容，请先生成。');
+            }
+        }
+    </script>
+</body>
+</html>

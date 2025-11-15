@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WordAI Helper</title>
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 10px; }
+        .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .action-button { padding: 15px; font-size: 14px; cursor: pointer; border: 1px solid #ccc; background-color: #f0f0f0; border-radius: 5px; }
+        .action-button:hover { background-color: #e0e0e0; }
+        .dialog { display: none; border: 1px solid #ccc; padding: 10px; margin-top: 15px; border-radius: 5px; }
+        .dialog h3 { margin-top: 0; }
+        .dialog textarea { width: 95%; box-sizing: border-box; }
+        .dialog-buttons { margin-top: 10px; }
+        .dialog-buttons button { margin-right: 5px; padding: 5px 10px; }
+        #preview-area { border: 1px solid #ddd; padding: 10px; margin-top: 10px; min-height: 60px; background-color: #fafafa; white-space: pre-wrap; }
+        .loading { display: none; color: #666; font-style: italic; text-align: center; padding: 10px; }
+        .api-config { margin: 15px 0; padding: 10px; background-color: #f9f9f9; border-radius: 5px; }
+    </style>
+</head>
+<body class="ms-font-m">
+    <h1>WordAI 智能助手</h1>
+    
+    <!-- API配置区域 -->
+    <div class="api-config">
+        <h4>API配置</h4>
+        <label>API密钥: <input type="password" id="api-key" placeholder="sk-dasbnnaq2xo7jnsd" style="width: 60%;"></label>
+        <button id="save-api-key" style="margin-left: 10px;">保存密钥</button>
+    </div>
+
+    <div class="button-group">
+        <button id="polish-btn" class="action-button">润色</button>
+        <button id="expand-btn" class="action-button">扩写</button>
+        <button id="other-btn" class="action-button">其他</button>
+        <button id="translate-btn" class="action-button">翻译</button>
+        <button id="explain-btn" class="action-button">解释</button>
+    </div>
+
+    <!-- 这个是对话框，默认是隐藏的 -->
+    <div id="action-dialog" class="dialog">
+        <h3 id="dialog-title">请输入您的指令</h3>
+        <textarea id="instruction-input" rows="3" placeholder="例如：让语气更正式一些"></textarea>
+        <div class="loading" id="loading">正在调用无问芯穹AI服务，请稍候...</div>
+        <div id="preview-area"></div>
+        <div class="dialog-buttons">
+            <button id="confirm-btn">确认</button>
+            <button id="copy-btn">复制</button>
+            <button id="insert-word-btn">插入Word</button>
+            <button id="cancel-btn">取消</button>
+        </div>
+    </div>
+
+    <script>
+        // API配置
+        const API_CONFIG = {
+            url: 'https://cloud.infini-ai.com/maas/v1/chat/completions',
+            model: 'deepseek-v3.2-exp',
+            apiKey: ''
+        };
+
+        let currentAction = '';
+        let selectedText = '';
+        let officeInitialized = false;
+
+        // 等待Office.js完全加载
+        Office.onReady(function(info) {
+            console.log("Office.js 已加载，主机类型:", info.host);
+            officeInitialized = true;
+            
+            // 从本地存储加载API密钥
+            const savedApiKey = localStorage.getItem('wordai_api_key');
+            if (savedApiKey) {
+                document.getElementById('api-key').value = savedApiKey;
+                API_CONFIG.apiKey = savedApiKey;
+            }
+
+            // 按钮事件绑定
+            document.getElementById('polish-btn').onclick = function() { showDialog('润色文本', '请对以下文本进行润色，使其更加流畅和专业：'); };
+            document.getElementById('expand-btn').onclick = function() { showDialog('扩写文本', '请对以下文本进行扩写，增加更多细节和内容：'); };
+            document.getElementById('other-btn').onclick = function() { showDialog('自定义处理', '请对以下文本进行处理：'); };
+            document.getElementById('translate-btn').onclick = function() { showDialog('翻译文本', '请将以下文本翻译成中文：'); };
+            document.getElementById('explain-btn').onclick = function() { showDialog('解释文本', '请解释以下文本的含义：'); };
+            
+            // 对话框按钮事件
+            document.getElementById('confirm-btn').onclick = callAI;
+            document.getElementById('copy-btn').onclick = copyResult;
+            document.getElementById('insert-word-btn').onclick = insertToWord;
+            document.getElementById('cancel-btn').onclick = hideDialog;
+            
+            // API密钥保存
+            document.getElementById('save-api-key').onclick = function() {
+                const apiKey = document.getElementById('api-key').value;
+                if (apiKey) {
+                    localStorage.setItem('wordai_api_key', apiKey);
+                    API_CONFIG.apiKey = apiKey;
+                    alert('API密钥已保存');
+                } else {
+                    alert('请输入API密钥');
+                }
+            };
+            
+            // 输入框变化时更新预览
+            document.getElementById('instruction-input').oninput = updatePreview;
+        });
+
+        function showDialog(title, instruction) {
+            if (!API_CONFIG.apiKey) {
+                alert('请先配置API密钥');
+                return;
+            }
+            
+            if (!officeInitialized) {
+                alert('Office环境尚未初始化，请稍后再试');
+                return;
+            }
+            
+            document.getElementById('dialog-title').innerText = title;
+            document.getElementById('instruction-input').value = instruction;
+            document.getElementById('action-dialog').style.display = 'block';
+            currentAction = title;
+            
+            // 获取选中的文本
+            Word.run(function(context) {
+                const selection = context.document.getSelection();
+                context.load(selection, 'text');
+                return context.sync().then(function() {
+                    selectedText = selection.text;
+                    updatePreview();
+                });
+            }).catch(function(error) {
+                console.log('获取选中文本失败:', error);
+                selectedText = '';
+                updatePreview();
+                alert('获取选中文本失败，请确保已在Word中选择了文本');
+            });
+        }
+
+        function hideDialog() {
+            document.getElementById('action-dialog').style.display = 'none';
+        }
+
+        function updatePreview() {
+            const instruction = document.getElementById('instruction-input').value;
+            const preview = instruction + '\n\n原文：' + (selectedText || '请先在Word中选择要处理的文本');
+            document.getElementById('preview-area').innerText = preview;
+        }
+
+        async function callAI() {
+            const instruction = document.getElementById('instruction-input').value;
+            const fullPrompt = instruction + '\n\n原文：' + (selectedText || '请先在Word中选择要处理的文本');
+            
+            // 显示加载状态
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('preview-area').innerText = '';
+            
+            try {
+                const response = await fetch(API_CONFIG.url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_CONFIG.apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: API_CONFIG.model,
+                        messages: [
+                            {
+                                role: 'user',
+                                content: fullPrompt
+                            }
+                        ],
+                        temperature: 0.7
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API调用失败: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                const result = data.choices[0].message.content;
+                
+                document.getElementById('preview-area').innerText = result;
+                
+            } catch (error) {
+                console.error('API调用错误:', error);
+                document.getElementById('preview-area').innerText = '调用失败: ' + error.message;
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        function copyResult() {
+            const result = document.getElementById('preview-area').innerText;
+            if (result && !result.includes('调用失败')) {
+            if (result && !result.includes('调用失败') && !result.includes('请先在Word中选择要处理的文本')) {
+                navigator.clipboard.writeText(result).then(function() {
+                    alert('结果已复制到剪贴板');
+                }).catch(function(err) {
+                    console.error('复制失败:', err);
+                    // 降级方案
+                    const textArea = document.createElement('textarea');
+                    textArea.value = result;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    alert('结果已复制到剪贴板');
+                });
+            }
+        }
+
+        function insertToWord() {
+            const result = document.getElementById('preview-area').innerText;
+            if (result && !result.includes('调用失败') && !result.includes('请先在Word中选择要处理的文本')) {
+                Word.run(function(context) {
+                    const selection = context.document.getSelection();
+                    selection.insertText(result, Word.InsertLocation.replace);
+                    return context.sync();
+                }).then(function() {
+                    alert('结果已插入到Word文档');
+                }).catch(function(error) {
+                    console.error('插入Word失败:', error);
+                    alert('插入Word失败: ' + error.message);
+                });
+            }
+        }
+    </script>
+</body>
+</html>
