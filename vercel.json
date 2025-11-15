@@ -8,8 +8,12 @@
   ],
   "routes": [
     {
+      "src": "/taskpane.html",
+      "dest": "/taskpane.html"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/index.html"
     }
   ]
 }
