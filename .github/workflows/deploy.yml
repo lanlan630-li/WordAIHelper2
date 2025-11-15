@@ -1,0 +1,7 @@
+WordAIHelper/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml
+├── manifest.xml
+├── taskpane.html
+└── ... (其他文件)
