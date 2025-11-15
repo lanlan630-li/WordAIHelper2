@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
   <Id>32d8a54a-4927-4376-88e7-f70b17f880b0</Id>
   <Version>1.0.0.0</Version>
@@ -6,18 +6,23 @@
   <DefaultLocale>zh-CN</DefaultLocale>
   <DisplayName DefaultValue="WordAI 智能助手"/>
   <Description DefaultValue="一个强大的AI写作助手，支持润色、扩写、翻译、解释等功能。"/>
-  <!-- 地址已更新为Netlify地址 -->
+  
+  <!-- 所有地址已更新为Netlify -->
   <IconUrl DefaultValue="https://enchanting-arithmetic-4d803f.netlify.app/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://enchanting-arithmetic-4d803f.netlify.app/assets/icon-80.png"/>
   <SupportUrl DefaultValue="https://www.contoso.com/help"/>
+  
   <Hosts>
     <Host Name="Document"/>
   </Hosts>
+  
   <DefaultSettings>
-    <!-- 地址已更新 -->
+    <!-- 任务面板地址已更新为Netlify -->
     <SourceLocation DefaultValue="https://enchanting-arithmetic-4d803f.netlify.app/taskpane.html"/>
   </DefaultSettings>
+  
   <Permissions>ReadWriteDocument</Permissions>
+  
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
     <Hosts>
       <Host xsi:type="Document">
@@ -27,7 +32,9 @@
             <Description resid="GetStarted.Description"/>
             <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
           </GetStarted>
+          
           <FunctionFile resid="Commands.Url"/>
+          
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <OfficeTab id="TabHome">
               <Group id="CommandsGroup">
@@ -37,6 +44,7 @@
                   <bt:Image size="32" resid="Icon.32x32"/>
                   <bt:Image size="80" resid="Icon.80x80"/>
                 </Icon>
+                
                 <Control xsi:type="Button" id="TaskpaneButton">
                   <Label resid="TaskpaneButton.Label"/>
                   <Supertip>
@@ -59,26 +67,31 @@
         </DesktopFormFactor>
       </Host>
     </Hosts>
+    
     <Resources>
       <bt:Images>
-        <!-- 地址已更新 -->
+        <!-- 所有图标地址已更新为Netlify -->
         <bt:Image id="Icon.16x16" DefaultValue="https://enchanting-arithmetic-4d803f.netlify.app/assets/icon-16.png"/>
         <bt:Image id="Icon.32x32" DefaultValue="https://enchanting-arithmetic-4d803f.netlify.app/assets/icon-32.png"/>
         <bt:Image id="Icon.80x80" DefaultValue="https://enchanting-arithmetic-4d803f.netlify.app/assets/icon-80.png"/>
       </bt:Images>
+      
       <bt:Urls>
         <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812"/>
-        <!-- 地址已更新 -->
+        <!-- 所有功能文件地址已更新为Netlify -->
         <bt:Url id="Commands.Url" DefaultValue="https://enchanting-arithmetic-4d803f.netlify.app/commands.html"/>
         <bt:Url id="Taskpane.Url" DefaultValue="https://enchanting-arithmetic-4d803f.netlify.app/taskpane.html"/>
       </bt:Urls>
+      
       <bt:ShortStrings>
         <bt:String id="GetStarted.Title" DefaultValue="欢迎使用 WordAI 智能助手!"/>
         <bt:String id="CommandsGroup.Label" DefaultValue="AI 助手"/>
         <bt:String id="TaskpaneButton.Label" DefaultValue="打开 AI 面板"/>
       </bt:ShortStrings>
+      
       <bt:LongStrings>
-        <bt:String id="GetStarted.Description" DefaultValue="WordAI 智能助手已成功加载。请转到"开始"选项卡，点击"打开 AI 面板"按钮开始使用。"/>
+        <!-- 已修复XML语法错误，使用标准引号 -->
+        <bt:String id="GetStarted.Description" DefaultValue="WordAI 智能助手已成功加载。请转到&quot;开始&quot;选项卡，点击&quot;打开 AI 面板&quot;按钮开始使用。"/>
         <bt:String id="TaskpaneButton.Tooltip" DefaultValue="点击打开 AI 助手面板"/>
       </bt:LongStrings>
     </Resources>
