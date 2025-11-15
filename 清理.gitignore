@@ -1,0 +1,7 @@
+    # Ignore build output folder
+    Output/
+    
+    # You can also add other common ignore rules
+    # For example, if you have a node_modules folder
+    # node_modules/
+    
